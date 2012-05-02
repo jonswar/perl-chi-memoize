@@ -145,4 +145,11 @@ sub test_file_driver : Tests {
     }
 }
 
+sub test_errors : Tests {
+    memoize('func');
+    throws_ok { memoize('func') } qr/is already memoized/;
+    unmemoize('func');
+    throws_ok { unmemoize('func') } qr/is not memoized/;
+}
+
 1;

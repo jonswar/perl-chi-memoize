@@ -8,8 +8,9 @@ use strict;
 use warnings;
 use base qw(Exporter);
 
-our @EXPORT    = qw(memoize);
-our @EXPORT_OK = qw(memoized unmemoize);
+our @EXPORT      = qw(memoize);
+our @EXPORT_OK   = qw(memoize memoized unmemoize);
+our %EXPORT_TAGS = ( all => \@EXPORT_OK );
 
 my %memoized;
 my @get_set_options = qw( busy_lock expire_if expires_at expires_in expires_variance );
@@ -24,16 +25,17 @@ sub memoize {
     my $passed_key      = delete( $options{key} );
     my $cache           = delete( $options{cache} );
     my %compute_options = slice_grep { $is_get_set_option{$_} } \%options;
+    my $prefix          = "memoize::$func_id";
+
     if ( !$cache ) {
         my %cache_options = slice_grep { !$is_get_set_option{$_} } \%options;
-        $cache_options{namespace} ||= "memoize-$func_id";
+        $cache_options{namespace} ||= $prefix;
         if ( !$cache_options{driver} && !$cache_options{driver_class} ) {
             $cache_options{driver} = "Memory";
             $cache_options{global} = 1;
         }
         $cache = CHI->new(%cache_options);
     }
-    my $key_prefix = "memoize-$func_id";
 
     my $wrapper = sub {
         my $wantarray = wantarray ? 'L' : 'S';
@@ -41,14 +43,14 @@ sub memoize {
           defined($passed_key)
           ? ( ( ref($passed_key) eq 'CODE' ) ? $passed_key->(@_) : ($passed_key) )
           : @_;
-        my $key = [ $key_prefix, $wantarray, @key_parts ];
+        my $key = [ $prefix, $wantarray, @key_parts ];
         return $cache->compute( $key, {%compute_options}, $func_ref );
     };
     $memoized{$func_id} = CHI::Memoize::Info->new(
         orig       => $func_ref,
         wrapper    => $wrapper,
         cache      => $cache,
-        key_prefix => $key_prefix
+        key_prefix => $prefix
     );
 
     no strict 'refs';
@@ -105,7 +107,7 @@ CHI::Memoize - Make functions faster with memoization, via CHI
 
 =head1 SYNOPSIS
 
-    use CHI::Memoize;
+    use CHI::Memoize qw(:all);
 
     # Straight memoization in memory
     memoize('func');
@@ -127,7 +129,6 @@ CHI::Memoize - Make functions faster with memoization, via CHI
     memoize('func', driver => 'Memcached', servers => ["127.0.0.1:11211"]);
 
     # See what's been memoized for a function
-    use CHI::Memoize qw(memoized);
     my @keys = memoized('func')->cache->get_keys;
 
     # Clear memoize results for a function
@@ -138,16 +139,15 @@ CHI::Memoize - Make functions faster with memoization, via CHI
     memoize('func', cache => $cache);
 
     # Unmemoize function, restoring it to its original state
-    use CHI::Memoize qw(unmemoize);
     unmemoize('func');
 
 =head1 DESCRIPTION
 
-`Memoizing' a function makes it faster by trading space for time.  It does this
-by caching the return values of the function in a table.  If you call the
-function again with the same arguments, ""memoize"" jumps in and gives you the
+"`Memoizing' a function makes it faster by trading space for time.  It does
+this by caching the return values of the function in a table.  If you call the
+function again with the same arguments, C<memoize> jumps in and gives you the
 value out of the table, instead of letting the function compute the value all
-over again. -- quoted from the original L<Memoize|Memoize>
+over again." -- quoted from the original L<Memoize|Memoize>
 
 C<CHI::Memoize> provides the same facility as L<Memoize|Memoize>, but backed by
 L<CHI|CHI>. This means you can
@@ -156,12 +156,14 @@ L<CHI|CHI>. This means you can
 
 =item *
 
-specify expiration times (expires_in) and conditions (expire_if)
+specify expiration times (L<expires_in|CHI/expires_in>) and conditions
+(L<expire_if|CHI/expire_if>)
 
 =item *
 
 memoize to different backends, e.g. L<File|CHI::Driver::File>,
-L<Memcached|CHI::Driver::Memcached>, L<DBI|CHI::Driver::DBI>
+L<Memcached|CHI::Driver::Memcached>, L<DBI|CHI::Driver::DBI>, or to
+L<multilevel caches|CHI/SUBCACHES>
 
 =item *
 
@@ -172,7 +174,8 @@ serialization|CHI/Key transformations>)
 
 =head2 FUNCTIONS
 
-All of these are importable; only C<memoize> is imported by default.
+All of these are importable; only C<memoize> is imported by default. C<use
+Memoize qw(:all)> will import them all.
 
 =for html <a name="memoize">
 
@@ -203,7 +206,7 @@ By default, the cache L<namespace|CHI/namespace> is formed from the full
 function name or the stringified code reference.  This allows you to introspect
 and clear the memoized results for a particular function.
 
-Throws an error if I<$func> is already memoized.
+C<memoize> throws an error if I<$func> is already memoized.
 
 =item memoized ($func)
 
@@ -238,9 +241,10 @@ The following options can be passed to L</memoize>.
 =item key
 
 Specifies a code reference that takes arguments passed to the function and
-returns a cache key. The key may be returned as a list or a hash reference; it
-will automatically be serialized to JSON in canonical mode (sorted hash keys).
-e.g.  this uses the second and third argument to the function as a key:
+returns a cache key. The key may be returned as a list, list reference or hash
+reference; it will automatically be serialized to JSON in canonical mode
+(sorted hash keys).  e.g.  this uses the second and third argument to the
+function as a key:
 
     memoize('func', key => sub { @_[1..2] });
 
@@ -262,7 +266,8 @@ L<busy_lock|CHI/busy_lock>). e.g.
 
 =item cache options
 
-Any remaining options will be passed to C<< CHI->new >> to generate the cache:
+Any remaining options will be passed to the L<CHI constructor|CHI/CONSTRUCTOR>
+to generate the cache:
 
     # Store in memcached instead of memory
     memoize('func', driver => 'Memcached', servers => ["127.0.0.1:11211"]);

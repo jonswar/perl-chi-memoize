@@ -283,6 +283,27 @@ You can also specify an existing cache object:
 
 =back
 
+=head1 RELATED MODULES
+
+A number of modules address a subset of the problems addressed by this module,
+including:
+
+=over
+
+=item *
+
+L<Memoize::Expire> - pluggable expiration of memoized values
+
+=item *
+
+L<Memoize::ExpireLRU> - provides LRU expiration for Memoize
+
+=item *
+
+L<Memoize::Memcached> - use a memcached cache to memoize functions
+
+=back
+
 =head1 SUPPORT
 
 Questions and feedback are welcome, and should be directed to the perl-cache

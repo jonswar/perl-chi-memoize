@@ -150,7 +150,7 @@ value out of the table, instead of letting the function compute the value all
 over again." -- quoted from the original L<Memoize|Memoize>
 
 C<CHI::Memoize> provides the same facility as L<Memoize|Memoize>, but backed by
-L<CHI|CHI>. This means you can
+L<CHI|CHI>. This means, among other things, that you can
 
 =over
 
@@ -216,7 +216,7 @@ memoized, or undef if it has not been memoized.
     # The CHI cache where memoize results are stored
     #
     my $cache = memoized($func)->cache;
-    $cache>clear;
+    $cache->clear;
 
     # Code references to the original function and to the new wrapped function
     #

@@ -3,7 +3,7 @@ use Moose;
 use strict;
 use warnings;
 
-has [ 'orig', 'wrapper', 'cache' ];
+has [ 'orig', 'wrapper', 'cache', 'key_prefix' ] => ( is => 'ro' );
 
 1;
 

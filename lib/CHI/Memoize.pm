@@ -1,16 +1,24 @@
 package CHI::Memoize;
-use Memoize::Info;
+use Carp;
+use CHI;
+use CHI::Memoize::Info;
+use CHI::Driver;
+use Hash::MoreUtils qw(slice_grep);
 use strict;
 use warnings;
+use base qw(Exporter);
+
+our @EXPORT    = qw(memoize);
+our @EXPORT_OK = qw(memoized unmemoize);
 
 my %memoized;
-my @get_set_options = ( CHI->valid_get_options, CHI->valid_set_options );
+my @get_set_options = qw( busy_lock expire_if expires_at expires_in expires_variance );
 my %is_get_set_option = map { ( $_, 1 ) } @get_set_options;
 
 sub memoize {
     my ( $func, %options ) = @_;
 
-    my ( $func_name, $func_ref, $func_id ) = _parse_func_arg($func);
+    my ( $func_name, $func_ref, $func_id ) = _parse_func_arg( $func, scalar(caller) );
     croak "'$func_id' is already memoized" if exists( $memoized{$func_id} );
 
     my $passed_key      = delete( $options{key} );
@@ -19,8 +27,13 @@ sub memoize {
     if ( !$cache ) {
         my %cache_options = slice_grep { !$is_get_set_option{$_} } \%options;
         $cache_options{namespace} ||= "memoize-$func_id";
+        if ( !$cache_options{driver} && !$cache_options{driver_class} ) {
+            $cache_options{driver} = "Memory";
+            $cache_options{global} = 1;
+        }
         $cache = CHI->new(%cache_options);
     }
+    my $key_prefix = "memoize-$func_id";
 
     my $wrapper = sub {
         my $wantarray = wantarray ? 'L' : 'S';
@@ -28,36 +41,53 @@ sub memoize {
           defined($passed_key)
           ? ( ( ref($passed_key) eq 'CODE' ) ? $passed_key->(@_) : ($passed_key) )
           : @_;
-        my $key = [ "memoize-$func_id-$wantarray", @key_parts ];
-        return $cache->compute( $key, \%compute_options, $func_ref );
+        my $key = [ $key_prefix, $wantarray, @key_parts ];
+        return $cache->compute( $key, {%compute_options}, $func_ref );
     };
-    $memoized{$func_id} =
-      Memoize::Info->new( orig => $func_ref, wrapper => $wrapper, cache => $cache );
+    $memoized{$func_id} = CHI::Memoize::Info->new(
+        orig       => $func_ref,
+        wrapper    => $wrapper,
+        cache      => $cache,
+        key_prefix => $key_prefix
+    );
+
+    no strict 'refs';
+    no warnings 'redefine';
     *{$func_name} = $wrapper if $func_name;
 
     return $wrapper;
 }
 
+sub memoized {
+    my ( $func_name, $func_ref, $func_id ) = _parse_func_arg( $_[0], scalar(caller) );
+    return $memoized{$func_id};
+}
+
 sub unmemoize {
-    my ( $func_name, $func_ref, $func_id ) = _parse_func_arg( $_[0] );
+    my ( $func_name, $func_ref, $func_id ) = _parse_func_arg( $_[0], scalar(caller) );
     my $info = $memoized{$func_id} or die "$func_id is not memoized";
 
     eval { $info->cache->clear() };
+    no strict 'refs';
+    no warnings 'redefine';
     *{$func_name} = $info->orig if $func_name;
+    delete( $memoized{$func_id} );
     return $info->orig;
 }
 
 sub _parse_func_arg {
-    my ($func) = @_;
+    my ( $func, $caller ) = @_;
     my ( $func_name, $func_ref, $func_id );
     if ( ref($func) eq 'CODE' ) {
         $func_ref = $func;
         $func_id  = "$func_ref";
     }
     else {
-        $func_name = caller() . "::$name" if $func_name !~ /::/;
+        $func_name = $func;
+        $func_name = join( "::", $caller, $func_name ) if $func_name !~ /::/;
         $func_id   = $func_name;
-        $func_ref  = *{$func_name};
+        no strict 'refs';
+        $func_ref = \&$func_name;
         die "no such function '$func_name'" if ref($func_ref) ne 'CODE';
     }
     return ( $func_name, $func_ref, $func_id );
@@ -97,6 +127,7 @@ CHI::Memoize - Make functions faster with memoization, via CHI
     memoize('func', driver => 'Memcached', servers => ["127.0.0.1:11211"]);
 
     # See what's been memoized for a function
+    use CHI::Memoize qw(memoized);
     my @keys = memoized('func')->cache->get_keys;
 
     # Clear memoize results for a function
@@ -107,6 +138,7 @@ CHI::Memoize - Make functions faster with memoization, via CHI
     memoize('func', cache => $cache);
 
     # Unmemoize function, restoring it to its original state
+    use CHI::Memoize qw(unmemoize);
     unmemoize('func');
 
 =head1 DESCRIPTION
@@ -124,7 +156,9 @@ From C<Memoize>:
      value out of the table, instead of letting the function
      compute the value all over again.
 
-=head2 METHODS
+=head2 FUNCTIONS
+
+All of these are importable; only C<memoize> is imported by default.
 
 =for html <a name="memoize">
 
@@ -166,7 +200,7 @@ memoized, or undef if it has not been memoized.
     my $cache = memoized($func)->cache;
     $cache>clear;
 
-    # The original function, and the new wrapped function
+    # Code references to the original function and to the new wrapped function
     #
     my $orig = memoized($func)->orig;
     my $wrapped = memoized($func)->wrapped;
@@ -182,7 +216,7 @@ I<$func> has not been memoized.
 
 =head2 OPTIONS
 
-The following options can be passed to L<memoize>.
+The following options can be passed to L</memoize>.
 
 =over
 

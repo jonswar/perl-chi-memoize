@@ -143,18 +143,32 @@ CHI::Memoize - Make functions faster with memoization, via CHI
 
 =head1 DESCRIPTION
 
+`Memoizing' a function makes it faster by trading space for time.  It does this
+by caching the return values of the function in a table.  If you call the
+function again with the same arguments, ""memoize"" jumps in and gives you the
+value out of the table, instead of letting the function compute the value all
+over again. -- quoted from the original L<Memoize|Memoize>
+
 C<CHI::Memoize> provides the same facility as L<Memoize|Memoize>, but backed by
-L<CHI|CHI>. This means you can specify expiration times and conditions, memoize
-to different backends (file, memcached, DBI, etc.), etc.
+L<CHI|CHI>. This means you can
 
-From C<Memoize>:
+=over
 
-     `Memoizing' a function makes it faster by trading space for
-     time.  It does this by caching the return values of the
-     function in a table.  If you call the function again with
-     the same arguments, ""memoize"" jumps in and gives you the
-     value out of the table, instead of letting the function
-     compute the value all over again.
+=item *
+
+specify expiration times (expires_in) and conditions (expire_if)
+
+=item *
+
+memoize to different backends, e.g. L<File|CHI::Driver::File>,
+L<Memcached|CHI::Driver::Memcached>, L<DBI|CHI::Driver::DBI>
+
+=item *
+
+handle arbitrarily complex function arguments (via CHI L<key
+serialization|CHI/Key transformations>)
+
+=back
 
 =head2 FUNCTIONS
 
@@ -169,26 +183,27 @@ All of these are importable; only C<memoize> is imported by default.
 Creates a new function wrapped around I<$func> that caches results based on
 passed arguments.
 
-I<$func> can be a function name (with or without a package prefix), or an
+I<$func> can be a function name (with or without a package prefix) or an
 anonymous function. In the former case, the name is rebound to the new
-function. In either case a code ref to the new function is returned.
+function. In either case a code ref to the new wrapper function is returned.
 
-By default, the cache key is formed from combining all the arguments with JSON
-in canonical mode (sorted hash keys). e.g. these arguments will generate the
-same cache key:
+By default, the cache key is formed from combining the full function name, the
+calling context ("L" or "S"), and all the function arguments with canonical
+JSON (sorted hash keys). e.g. these arguments will generate the same cache key:
 
     memoized_function(a => 5, b => 6, c => { d => 7, e => 8 });
     memoized_function(b => 6, c => { e => 8, d => 7 }, a => 5);
+
+but these will use a different cache key because of context:
+
+     my $scalar = memoized_function(5);
+     my @list = memoized_function(5);
 
 By default, the cache L<namespace|CHI/namespace> is formed from the full
 function name or the stringified code reference.  This allows you to introspect
 and clear the memoized results for a particular function.
 
-List and scalar context results are memoized separately, so these results will
-not interfere even though they have the same function name and arguments:
-
-     my $scalar = memoized_function(5);
-     my @list = memoized_function(5);
+Throws an error if I<$func> is already memoized.
 
 =item memoized ($func)
 
@@ -223,16 +238,21 @@ The following options can be passed to L</memoize>.
 =item key
 
 Specifies a code reference that takes arguments passed to the function and
-returns the key. The key may be returned as a list or a hash reference; it will
-automatically be serialized to JSON in canonical mode (sorted hash keys). e.g.
-this is the uses the second and third argument to the function as a key:
+returns a cache key. The key may be returned as a list or a hash reference; it
+will automatically be serialized to JSON in canonical mode (sorted hash keys).
+e.g.  this uses the second and third argument to the function as a key:
 
     memoize('func', key => sub { @_[1..2] });
 
+Regardless of what key you specify, it will automatically be prefixed with the
+full function name and the calling context ("L" or "S").
+
 =item set and get options
 
-You can pass any options accepted by CHI's L<set|CHI/set> (e.g. C<expires_in>,
-C<expires_variance>) or L<get|CHI/get> (e.g. C<expire_if>, C<busy_lock>). e.g.
+You can pass any of CHI's L<set|CHI/set> options (e.g.
+L<expires_in|CHI/expires_in>, L<expires_variance|CHI/expires_variance>) or
+L<get|CHI/get> options (e.g. L<expire_if|CHI/expire_if>,
+L<busy_lock|CHI/busy_lock>). e.g.
 
     # Expire after one hour
     memoize('func', expires_in => '1h');
@@ -242,7 +262,7 @@ C<expires_variance>) or L<get|CHI/get> (e.g. C<expire_if>, C<busy_lock>). e.g.
 
 =item cache options
 
-You can specify options to C<< CHI->new >> to generate the cache:
+Any remaining options will be passed to C<< CHI->new >> to generate the cache:
 
     # Store in memcached instead of memory
     memoize('func', driver => 'Memcached', servers => ["127.0.0.1:11211"]);
@@ -277,5 +297,5 @@ The latest source code can be browsed and fetched at:
 
 =head1 SEE ALSO
 
-L<Some::Module>
+L<CHI|CHI>, L<Memoize|Memoize>
 

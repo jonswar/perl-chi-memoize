@@ -108,14 +108,14 @@ CHI::Memoize - Make functions faster with memoization, via CHI
 =head1 SYNOPSIS
 
     use CHI::Memoize qw(:all);
-
+    
     # Straight memoization in memory
     memoize('func');
     memoize('Some::Package::func');
-  
+    
     # Memoize an anonymous function
     $anon = memoize($anon);
-
+    
     # Memoize based on the second and third argument to func
     memoize('func', key => sub { [$_[1], $_[2]] });
     
@@ -127,17 +127,17 @@ CHI::Memoize - Make functions faster with memoization, via CHI
     
     # Store in memcached instead of memory
     memoize('func', driver => 'Memcached', servers => ["127.0.0.1:11211"]);
-
+    
     # See what's been memoized for a function
     my @keys = memoized('func')->cache->get_keys;
-
+    
     # Clear memoize results for a function
     my @keys = memoized('func')->cache->clear;
-
+    
     # Use an explicit cache instead of autocreating one
     my $cache = CHI->new(driver => 'Memcached', servers => ["127.0.0.1:11211"]);
     memoize('func', cache => $cache);
-
+    
     # Unmemoize function, restoring it to its original state
     unmemoize('func');
 

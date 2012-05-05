@@ -316,8 +316,8 @@ value. e.g. in this code
 
 C<$ref1> and C<$ref2> will be references to two completely different lists
 which have the same contained values. More specifically, the value is
-L<serialized|CHI/serializer> by C<Storable> on C<set> and deserialized (hence
-cloned) on C<get>.
+L<serialized|CHI/serializer> by L<Storable|Storable> on C<set> and deserialized
+(hence cloned) on C<get>.
 
 The advantage here is that it is safe to modify a reference returned from a
 memoized function; your modifications won't affect the cached value.

@@ -2,6 +2,8 @@ Revision history for CHI-Memoize
 
 ** denotes an incompatible change
 
+0.03  May 5, 2012
+
 0.02  May 5, 2012
 
 - Document cloned vs raw references and using RawMemory

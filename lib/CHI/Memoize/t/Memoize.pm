@@ -1,13 +1,12 @@
 package CHI::Memoize::t::Memoize;
 use Test::Class::Most parent => 'Test::Class';
 use File::Temp qw(tempdir);
-use CHI::Memoize qw(memoize memoized unmemoize);
+use CHI::Memoize qw(memoize memoized unmemoize NO_MEMOIZE);
 
 my $unique_id = 0;
 sub unique_id { ++$unique_id }
 
 sub func { unique_id() }
-sub echo { join( ", ", @_ ) }
 
 # memoize('func');
 #
@@ -59,10 +58,17 @@ sub test_anon : Tests {
     is( $info->wrapper,                   $memo_func );
 }
 
-# memoize('func', key => sub { [$_[1], $_[2]] });
+# memoize('func', key => sub { $_[0] });
+# memoize('func', key => sub { $_[1], $_[2] });
 #
 sub test_dynamic_key : Tests {
-    memoize( 'func', key => sub { [ $_[1], $_[2] ] } );
+    memoize( 'func', key => sub { $_[0] } );
+    is( func(), func(), "empty=empty" );
+    is( func( 1, 2, 3 ), func( 1, 5 ), "123=15" );
+    isnt( func( 1, 2, 3 ), func( 2, 2, 3 ), "123=223" );
+    unmemoize('func');
+
+    memoize( 'func', key => sub { $_[1], $_[2] } );
     is( func( 1, 2, 3 ), func( 1, 2, 3 ), "123=123" );
     is( func( 1, 2, 3 ), func( 5, 2, 3 ), "123=523" );
     is( func(1), func(5), "1=5" );
@@ -70,8 +76,17 @@ sub test_dynamic_key : Tests {
     my $info   = memoized('func');
     my @keys   = $info->cache->get_keys;
     my $prefix = join( ",", map { qq{"$_"} } ( $info->key_prefix, 'S' ) );
-    cmp_deeply( \@keys, bag( "[$prefix,[null,null]]", "[$prefix,[2,4]]", "[$prefix,[2,3]]" ) );
+    cmp_deeply( \@keys, bag( "[$prefix,null,null]", "[$prefix,2,4]", "[$prefix,2,3]" ) );
+    unmemoize('func');
+}
 
+# memoize('func', key => sub { NOCACHE });
+#
+sub test_undef_or_empty_key : Tests {
+    memoize( 'func', key => sub { defined( $_[0] ) && $_[0] eq 'nocache' ? NO_MEMOIZE : @_ } );
+    is( func(),      func(),      "no args" );
+    is( func('foo'), func('foo'), "regular arg" );
+    isnt( func('nocache'), func('nocache'), "nocache" );
     unmemoize('func');
 }
 
@@ -145,11 +160,34 @@ sub test_file_driver : Tests {
     }
 }
 
-sub test_errors : Tests {
-    memoize('func');
-    throws_ok { memoize('func') } qr/is already memoized/;
-    unmemoize('func');
-    throws_ok { unmemoize('func') } qr/is not memoized/;
+# memoize('func') vs memoize('func', driver => 'RawMemory');
+#
+sub test_cloned_versus_raw : Tests {
+    my $base = sub { [ unique_id(), unique_id() ] };
+
+    {
+        my $func = memoize($base);
+        my $ref1 = $func->();
+        my $ref2 = $func->();
+        cmp_deeply( $ref1, $ref2, "same contents" );
+        isnt( $ref1, $ref2, "different refs" );
+        push( @$ref1, 'foo' );
+        my $ref3 = $func->();
+        cmp_deeply( $ref3, $ref2, "memoized value unaffected by changes to result" );
+        unmemoize($base);
+    }
+
+    {
+        my $func = memoize( $base, driver => 'RawMemory' );
+        my $ref1 = $func->();
+        my $ref2 = $func->();
+        cmp_deeply( $ref1, $ref2, "same contents" );
+        is( $ref1, $ref2, "same refs" );
+        push( @$ref1, 'foo' );
+        my $ref3 = $func->();
+        cmp_deeply( $ref3, $ref1, "memoized value affected by changes to result" );
+        unmemoize($base);
+    }
 }
 
 1;

@@ -4,6 +4,10 @@ Revision history for CHI-Memoize
 
 0.02  May 2, 2012
 
+- Document cloned vs raw references and using RawMemory
+- Add NO_MEMOIZE flag that can be returned from key coderef
+- Fix synopsis whitespace
+
 0.01  May 2, 2012
 
 - Initial version

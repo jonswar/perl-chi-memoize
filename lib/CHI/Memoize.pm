@@ -49,11 +49,12 @@ sub memoize {
           ? ( ( ref($passed_key) eq 'CODE' ) ? $passed_key->(@_) : ($passed_key) )
           : @_;
         if ( @key_parts == 1 && ( $key_parts[0] || 0 ) eq NO_MEMOIZE ) {
-            return $func_ref->();
+            return $func_ref->(@_);
         }
         else {
             my $key = [ $prefix, $wantarray, @key_parts ];
-            return $cache->compute( $key, {%compute_options}, $func_ref );
+            my $args = \@_;
+            return $cache->compute( $key, {%compute_options}, sub { $func_ref->(@$args) } );
         }
     };
     $memoized{$func_id} = CHI::Memoize::Info->new(
@@ -365,6 +366,16 @@ on a cache hit.
 
 Do not memoize a very simple function, as the costs of caching will outweigh
 the costs of the function itself.
+
+=back
+
+=head1 KNOWN BUGS
+
+=over
+
+=item *
+
+Memoizing a function will affect its call stack and its prototype.
 
 =back
 

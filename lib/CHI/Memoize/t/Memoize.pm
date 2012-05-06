@@ -6,7 +6,7 @@ use CHI::Memoize qw(memoize memoized unmemoize NO_MEMOIZE);
 my $unique_id = 0;
 sub unique_id { ++$unique_id }
 
-sub func { unique_id() }
+sub func { join( ",", unique_id(), @_ ) }
 
 # memoize('func');
 #
@@ -23,6 +23,9 @@ sub test_basic : Tests {
     is( $info->orig,                $orig );
     is( $info->wrapper,             \&func );
 
+    cmp_deeply( func(), re(qr/\d+/), 'no args' );
+    cmp_deeply( func( 'a', 'b' ), re(qr/\d+,a,b/), 'two args' );
+
     unmemoize('func');
     isnt( func(), func(), "different values" );
     ok( !memoized('func'), 'not memoized' );
@@ -31,6 +34,7 @@ sub test_basic : Tests {
 
 # memoize('Some::Package::func');
 #
+
 sub test_full_name : Tests {
     my $full_name = join( "::", __PACKAGE__, 'func' );
     my $orig = \&func;

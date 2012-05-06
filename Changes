@@ -2,7 +2,7 @@ Revision history for CHI-Memoize
 
 ** denotes an incompatible change
 
-0.03  May 5, 2012
+0.03  May 6, 2012
 
 * Documentation
   - Mention that memoizing a function will affect its call stack and its prototype

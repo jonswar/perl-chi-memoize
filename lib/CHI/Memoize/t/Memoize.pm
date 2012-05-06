@@ -90,7 +90,8 @@ sub test_undef_or_empty_key : Tests {
     memoize( 'func', key => sub { defined( $_[0] ) && $_[0] eq 'nocache' ? NO_MEMOIZE : @_ } );
     is( func(),      func(),      "no args" );
     is( func('foo'), func('foo'), "regular arg" );
-    isnt( func('nocache'), func('nocache'), "nocache" );
+    isnt( func( 'nocache', 'a', 'b' ), func( 'nocache', 'a', 'b' ), "nocache" );
+    cmp_deeply( func( 'nocache', 'a', 'b' ), re(qr/\d+,nocache,a,b/), 'two args' );
     unmemoize('func');
 }
 

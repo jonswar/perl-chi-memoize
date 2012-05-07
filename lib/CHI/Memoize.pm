@@ -209,12 +209,13 @@ function. In either case a code ref to the new wrapper function is returned.
 
 By default, the cache key is formed from combining the full function name, the
 calling context ("L" or "S"), and all the function arguments with canonical
-JSON (sorted hash keys). e.g. these arguments will generate the same cache key:
+JSON (sorted hash keys). e.g. these calls will be memoized together:
 
-    memoized_function(a => 5, b => 6, c => { d => 7, e => 8 });
-    memoized_function(b => 6, c => { e => 8, d => 7 }, a => 5);
+    memoized_function({a => 5, b => 6, c => { d => 7, e => 8 }});
+    memoized_function({b => 6, c => { e => 8, d => 7 }, a => 5});
 
-but these will use a different cache key because of context:
+because the two hashes being passed are canonically the same. But these will be
+memoized separately because of context:
 
      my $scalar = memoized_function(5);
      my @list = memoized_function(5);
@@ -260,18 +261,26 @@ The following options can be passed to L</memoize>.
 Specifies a code reference that takes arguments passed to the function and
 returns a cache key. The key may be returned as a list, list reference or hash
 reference; it will automatically be serialized to JSON in canonical mode
-(sorted hash keys).  e.g.  this uses the second and third argument to the
-function as a key:
+(sorted hash keys).
+
+For example, this uses the second and third argument to the function as a key:
 
     memoize('func', key => sub { @_[1..2] });
+
+and this is useful for functions that accept a list of key/value pairs:
+
+    # Ignore order of key/value pairs
+    memoize('func', key => sub { %@_ });
 
 Regardless of what key you specify, it will automatically be prefixed with the
 full function name and the calling context ("L" or "S").
 
-If the function returns C<CHI::Memoize::NO_MEMOIZE> (or C<NO_MEMOIZE> if you
+If the coderef returns C<CHI::Memoize::NO_MEMOIZE> (or C<NO_MEMOIZE> if you
 import it), this call won't be memoized. This is useful if you have a cache of
 limited size or if you know certain arguments will yield nondeterministic
-results.
+results. e.g.
+
+    memoize('func', key => sub { $is_worth_caching ? @_ : NO_MEMOIZE });
 
 =item set and get options
 

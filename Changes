@@ -2,10 +2,10 @@ Revision history for CHI-Memoize
 
 ** denotes an incompatible change
 
-0.05  Aug 19, 2012
+0.05  Aug 24, 2012
 
-* Implementation
-  - Something
+* Documentation
+  - Simplify synopsis and refer to blog (Anirvan Chatterjee)
 
 0.04  May 6, 2012
 

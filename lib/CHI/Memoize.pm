@@ -123,40 +123,16 @@ CHI::Memoize - Make functions faster with memoization, via CHI
     # Straight memoization in memory
     memoize('func');
     memoize('Some::Package::func');
-    
-    # Memoize an anonymous function
-    $anon = memoize($anon);
-    
-    # Memoize based on the second and third argument to func
-    memoize('func', key => sub { $_[1], $_[2] });
-    
-    # Memoize only in certain cases
-    memoize('func', key => sub { $_[0] eq 'variable' ? NO_MEMOIZE : @_ });
-    
+
+    # Memoize to a file or to memcached
+    memoize( 'func', driver => 'File', root_dir => '/path/to/cache' );
+    memoize( 'func', driver => 'Memcached', servers => ["127.0.0.1:11211"] );
+
     # Expire after one hour
     memoize('func', expires_in => '1h');
     
-    # Store a maximum of 10 results with LRU discard
-    memoize('func', max_size => 10);
-    
-    # Store raw references instead of serializing/deserializing (faster, more risky)
-    memoize('func', driver => 'RawMemory');
-    
-    # Store in memcached instead of memory
-    memoize('func', driver => 'Memcached', servers => ["127.0.0.1:11211"]);
-    
-    # See what's been memoized for a function
-    my @keys = memoized('func')->cache->get_keys;
-    
-    # Clear memoize results for a function
-    my @keys = memoized('func')->cache->clear;
-    
-    # Use an explicit cache instead of autocreating one
-    my $cache = CHI->new(driver => 'Memcached', servers => ["127.0.0.1:11211"]);
-    memoize('func', cache => $cache);
-    
-    # Unmemoize function, restoring it to its original state
-    unmemoize('func');
+    # Memoize based on the second and third argument to func
+    memoize('func', key => sub { $_[1], $_[2] });
 
 =head1 DESCRIPTION
 
@@ -165,6 +141,10 @@ this by caching the return values of the function in a table.  If you call the
 function again with the same arguments, C<memoize> jumps in and gives you the
 value out of the table, instead of letting the function compute the value all
 over again." -- quoted from the original L<Memoize|Memoize>
+
+For a bit of history and motivation, see
+
+    http://www.openswartz.com/2012/05/06/memoize-revisiting-a-twelve-year-old-api/
 
 C<CHI::Memoize> provides the same facility as L<Memoize|Memoize>, but backed by
 L<CHI|CHI>. This means, among other things, that you can
@@ -207,6 +187,13 @@ I<$func> can be a function name (with or without a package prefix) or an
 anonymous function. In the former case, the name is rebound to the new
 function. In either case a code ref to the new wrapper function is returned.
 
+    # Memoize a named function
+    memoize('func');
+    memoize('Some::Package::func');
+
+    # Memoize an anonymous function
+    $anon = memoize($anon);
+
 By default, the cache key is formed from combining the full function name, the
 calling context ("L" or "S"), and all the function arguments with canonical
 JSON (sorted hash keys). e.g. these calls will be memoized together:
@@ -247,6 +234,10 @@ Removes the wrapper around I<$func>, restoring it to its original unmemoized
 state.  Also clears the memoize cache if possible (not supported by all
 drivers, particularly L<memcached|CHI::Driver::Memcached>). Throws an error if
 I<$func> has not been memoized.
+
+    memoize('Some::Package::func');
+    ...
+    unmemoize('Some::Package::func');
 
 =back
 
@@ -300,6 +291,9 @@ L<busy_lock|CHI/busy_lock>). e.g.
 Any remaining options will be passed to the L<CHI constructor|CHI/CONSTRUCTOR>
 to generate the cache:
 
+    # Store in file instead of memory
+    memoize( 'func', driver => 'File', root_dir => '/path/to/cache' );
+
     # Store in memcached instead of memory
     memoize('func', driver => 'Memcached', servers => ["127.0.0.1:11211"]);
 
@@ -317,7 +311,7 @@ You can also specify an existing cache object:
 =head1 CLONED VS RAW REFERENCES
 
 By default C<CHI>, and thus C<CHI::Memoize>, returns a deep clone of the stored
-value. e.g. in this code
+value I<even> when caching in memory. e.g. in this code
 
     # func returns a list reference
     memoize('func');

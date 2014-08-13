@@ -178,7 +178,7 @@ Memoize qw(:all)> will import them all as well as the C<NO_MEMOIZE> constant.
 
 =over
 
-=item memoize ($func, option =E<gt> value, ...)
+=item memoize ($func, %options)
 
 Creates a new function wrapped around I<$func> that caches results based on
 passed arguments.
@@ -212,6 +212,8 @@ function name or the stringified code reference.  This allows you to introspect
 and clear the memoized results for a particular function.
 
 C<memoize> throws an error if I<$func> is already memoized.
+
+See L<OPTIONS> below for what can go in the options hash.
 
 =item memoized ($func)
 

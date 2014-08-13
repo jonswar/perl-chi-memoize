@@ -1,4 +1,5 @@
 package CHI::Memoize::t::Memoize;
+
 use Test::Class::Most parent => 'Test::Class';
 use File::Temp qw(tempdir);
 use CHI::Memoize qw(memoize memoized unmemoize NO_MEMOIZE);

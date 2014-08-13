@@ -1,4 +1,5 @@
 package CHI::Memoize;
+
 use Carp;
 use CHI;
 use CHI::Memoize::Info;

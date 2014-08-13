@@ -2,7 +2,7 @@ Revision history for CHI-Memoize
 
 ** denotes an incompatible change
 
-0.06  Aug 24, 2012
+0.06  Aug 13, 2014
 
 * Fixes
   - Use Moo not Moose, and explicitly depend on it

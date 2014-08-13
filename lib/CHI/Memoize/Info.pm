@@ -1,5 +1,5 @@
 package CHI::Memoize::Info;
-use Moose;
+use Moo;
 use strict;
 use warnings;
 

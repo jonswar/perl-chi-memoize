@@ -28,8 +28,12 @@ sub memoize {
 
     my $passed_key      = delete( $options{key} );
     my $cache           = delete( $options{cache} );
+    my $chi_class       = delete( $options{chi_class} );
     my %compute_options = slice_grep { $is_get_set_option{$_} } \%options;
     my $prefix          = "memoize::$func_id";
+    if (!defined $chi_class) {
+        $chi_class = "CHI";
+    }
 
     if ( !$cache ) {
         my %cache_options = slice_grep { !$is_get_set_option{$_} } \%options;
@@ -40,7 +44,7 @@ sub memoize {
         if ( $cache_options{driver} eq 'Memory' || $cache_options{driver} eq 'RawMemory' ) {
             $cache_options{global} = 1;
         }
-        $cache = CHI->new(%cache_options);
+        $cache = $chi_class->new(%cache_options);
     }
 
     my $wrapper = sub {
@@ -288,6 +292,10 @@ L<busy_lock|CHI/busy_lock>). e.g.
     
     # Expire when a particular condition occurs
     memoize('func', expire_if => sub { ... });
+
+=item chi_class
+
+The CHI sub class to use if not defined then CHI will be used.
 
 =item cache options
 
